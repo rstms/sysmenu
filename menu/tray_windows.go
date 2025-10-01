@@ -10,6 +10,26 @@ import (
 	"runtime"
 )
 
+type SystrayMenuItem struct {
+	item *systray.MenuItem
+}
+
+func NewSystrayMenuItem(item *systray.MenuItem) *SystrayMenuItem {
+	return &SystrayMenuItem{item: item}
+}
+
+func (s *SystrayMenuItem) Clicked() chan struct{} {
+	return s.item.ClickedCh
+}
+
+func (s *SystrayMenuItem) AddSubMenuItem(title, tooltip string) *SystrayMenuItem {
+	return &SystrayMenuItem{item: s.item.AddSubMenuItem(title, tooltip)}
+}
+
+func (s *SystrayMenuItem) AddSubMenuItemCheckbox(title, tooltip string, checked bool) *SystrayMenuItem {
+	return &SystrayMenuItem{item: s.item.AddSubMenuItemCheckbox(title, tooltip, checked)}
+}
+
 func (m *Menu) startup() error {
 	if m.debug {
 		log.Println("Menu.startup")
@@ -62,9 +82,9 @@ func (m *Menu) onReady() {
 	for _, item := range m.items {
 		switch item.Type {
 		case MenuItemClickable, MenuItemQuit:
-			item.start(systray.AddMenuItem(item.Title, item.Tooltip))
+			item.start(NewSystrayMenuItem(systray.AddMenuItem(item.Title, item.Tooltip)))
 		case MenuItemCheckbox:
-			item.start(systray.AddMenuItemCheckbox(item.Title, item.Tooltip, item.checked))
+			item.start(NewSystrayMenuItem(systray.AddMenuItemCheckbox(item.Title, item.Tooltip, item.checked)))
 		case MenuItemSeparator:
 			systray.AddSeparator()
 		default:
@@ -80,7 +100,7 @@ func (m *Menu) onExit() {
 	m.Stop()
 }
 
-func (i *MenuItem) start(trayItem *systray.MenuItem) {
+func (i *MenuItem) start(trayItem *SystrayMenuItem) {
 	if i.menu.debug {
 		log.Printf("MenuItem.start %d %s\n", i.Id, i.Title)
 	}
@@ -109,7 +129,7 @@ func (i *MenuItem) handler() {
 	}
 	for {
 		select {
-		case <-i.trayItem.ClickedCh:
+		case <-i.trayItem.Clicked():
 			if i.menu.debug {
 				log.Printf("received ClickedCh:  %d %s\n", i.Id, i.Title)
 			}
